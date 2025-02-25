@@ -13,7 +13,7 @@ public:
 
 private:
     void moveToPose();
-    bool goToPoseGoalCallback(ur5_cpp_controller::GoToPose::Request& req, ur5_cpp_controller::GoToPose::Response& res); // Updated to use the GoToPose service
+    bool goToPoseGoalCallback(ur5_cpp_controller::GoToPose::Request& req, ur5_cpp_controller::GoToPose::Response& res); //valjda.
 
     bool openGripperCallback(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
     bool closeGripperCallback(std_srvs::Empty::Request& req, std_srvs::Empty::Response& res);
