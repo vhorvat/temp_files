@@ -1,0 +1,107 @@
+#include <ros/ros.h>
+#include <moveit/move_group_interface/move_group_interface.h>
+#include <geometry_msgs/Pose.h>
+#include <dynamixel_workbench_msgs/DynamixelCommand.h>
+
+class UR5Move {
+public:
+    UR5Move(ros::NodeHandle& nh);
+    void moveToPose(const geometry_msgs::Pose& pose);
+    void openGripper();
+    void closeGripper();
+
+private:
+    moveit::planning_interface::MoveGroupInterface move_group_;
+    ros::ServiceClient dynamixel_client_;
+    dynamixel_workbench_msgs::DynamixelCommand dynamixel_srv_;
+    
+    int open_position_;
+    int close_position_;
+};
+
+UR5Move::UR5Move(ros::NodeHandle& nh)
+    : move_group_("manipulator")  
+{
+    //move_group_.setPlanningTime(20.0);  
+
+    dynamixel_client_ = nh.serviceClient<dynamixel_workbench_msgs::DynamixelCommand>("/dynamixel_workbench/dynamixel_command");
+    dynamixel_srv_.request.id = 1;  
+    dynamixel_srv_.request.addr_name = "Goal_Position";
+
+    open_position_ = 1500;
+    close_position_ = 1000;
+}
+
+void UR5Move::moveToPose(const geometry_msgs::Pose& pose) {
+    ROS_INFO("Moving to Pose: [x: %f, y: %f, z: %f, orientation: x: %f, y: %f, z: %f, w: %f]",
+             pose.position.x, pose.position.y, pose.position.z,
+             pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+    ROS_INFO("1");
+    move_group_.setPoseTarget(pose);
+    ROS_INFO("2");
+    move_group_.setGoalPositionTolerance(0.2); 
+    move_group_.setGoalOrientationTolerance(0.2); 
+    ROS_INFO("3");
+    moveit::planning_interface::MoveGroupInterface::Plan plan;
+    ROS_INFO("4");
+    moveit::planning_interface::MoveItErrorCode error_code = move_group_.plan(plan);
+    ROS_INFO("Planning error code: %s", moveit::planning_interface::MoveItErrorCode::toString(error_code));
+    ROS_INFO("5");
+
+    ROS_INFO("Planning successful, executing...");
+    move_group_.move();
+
+}
+
+void UR5Move::openGripper() {
+    ROS_INFO("Opening gripper");
+
+    dynamixel_srv_.request.value = open_position_;
+    if (dynamixel_client_.call(dynamixel_srv_)) {
+        ROS_INFO("Gripper opened.");
+    } else {
+        ROS_ERROR("Failed to open gripper.");
+    }
+}
+
+void UR5Move::closeGripper() {
+    ROS_INFO("Closing gripper");
+
+    dynamixel_srv_.request.value = close_position_;
+    if (dynamixel_client_.call(dynamixel_srv_)) {
+        ROS_INFO("Gripper closed.");
+    } else {
+        ROS_ERROR("Failed to close gripper.");
+    }
+}
+
+int main(int argc, char** argv) {
+    ros::init(argc, argv, "ur5_move_node");
+    ros::NodeHandle nh;
+    ros::AsyncSpinner spinner(0);
+    spinner.start();
+
+
+    UR5Move ur5_move(nh);
+
+    geometry_msgs::Pose target_pose;
+
+    target_pose.position.x = 0.9;
+    target_pose.position.y = 0.4;
+    target_pose.position.z = 0.5;
+
+    target_pose.orientation.x = 0.5;
+    target_pose.orientation.y = 0.5;
+    target_pose.orientation.z = 0.5;
+    target_pose.orientation.w = 1.0;
+
+    ur5_move.moveToPose(target_pose);
+    ros::Duration(1.0).sleep(); 
+
+    ur5_move.openGripper();
+    ros::Duration(2.0).sleep(); 
+
+    ur5_move.closeGripper();
+
+    return 0;
+}
